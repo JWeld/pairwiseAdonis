@@ -1,5 +1,5 @@
 # pairwiseAdonis
-# version 0.4 includes 2 functions
+# version 0.4.2 includes 2 functions
 pairwise.adonis
 
 pairwise.adonis2
@@ -26,6 +26,17 @@ This function accepts a model formula like in adonis from vegan. You can use int
 - the strata if used.
 
 The reduced data are passed to adonis and the summary of the anova table for each pair is saved in a list, together with the anova table of the full model and the original 'parent call'.
+
+update 30.09.2026 (version 0.4.2)
+Checked against vegan 2.6-4 and vegan 2.7-6 (adonis() is defunct since vegan 2.7-1; the package only uses adonis2()).
+Bug fixes: significance codes in pairwise.adonis were too strict, `reduce` matched level names as a regular expression,
+`nperm` was ignored in pairwise.adonis2 without strata, and symmetric distance matrices passed as plain matrices were
+silently re-transformed with Bray-Curtis. See NEWS.md in the package for the full list.
+
+NOTE on vegan >= 2.6-8: adonis2 now defaults to `by = NULL` (one omnibus test of the whole model per pair).
+For models with several terms, e.g. `Y ~ NO3/field`, pass `by = "terms"` to pairwise.adonis2 to get one row per term:
+
+```pairwise.adonis2(Y ~ NO3/field, data = dat, strata = 'field', by = "terms")```
 
 update 30.08.21
 Both functions now use adonis2 instead of adonis. This will solve some problems when loading DescTools. The functions should now work with Phyloseq objects.
@@ -119,4 +130,4 @@ for more examples see also
 _____________________________________________
 ## Citation
 
-Martinez Arbizu, P. (2020). pairwiseAdonis: Pairwise multilevel comparison using adonis. R package version 0.4
+Martinez Arbizu, P. (2020). pairwiseAdonis: Pairwise multilevel comparison using adonis. R package version 0.4.2

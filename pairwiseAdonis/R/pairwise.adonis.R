@@ -1,11 +1,13 @@
-#'@title Pairwise multilevel comparison using adonis
+#'@title Pairwise multilevel comparison using adonis2
 #'
 #'@description This is a wrapper function for multilevel pairwise comparison
-#' using adonis() from package 'vegan'. The function returns adjusted p-values using p.adjust().
+#' using adonis2() from package 'vegan'. The function returns adjusted p-values using p.adjust().
 #'
-#'@param x Data frame (the community table), or "dist" object (user-supplied distance matrix).
+#'@param x Data frame or matrix (the community table), or "dist" object (user-supplied distance matrix).
+#' A symmetric square matrix is also treated as a distance matrix, as in adonis2().
 #'
 #'@param factors Vector (a column or vector with the levels to be compared pairwise).
+#' Must have one entry per row (observation) of x.
 #'
 #'@param sim.function Function used to calculate the similarity matrix,
 #' one of 'daisy' or 'vegdist' default is 'vegdist'. Ignored if x is a distance matrix.
@@ -15,11 +17,15 @@
 #'@param p.adjust.m The p.value correction method, one of the methods supported by p.adjust(),
 #' default is 'bonferroni'.
 #'
-#'@param reduce String. Restrict comparison to pairs including these factors. If more than one factor, separate by pipes like  reduce = 'setosa|versicolor'
+#'@param reduce String. Restrict comparison to pairs including these factor levels. If more than one level,
+#' separate by pipes like  reduce = 'setosa|versicolor'. Levels are matched exactly. Only the retained
+#' comparisons are computed, and the p-value adjustment is applied to these comparisons only.
 #'
-#'@param perm The number of permutations.
+#'@param perm The number of permutations, or a permutation design from permute::how().
 #'
-#'@return Table with the pairwise factors, Df, SumsOfSqs, F-values, R^2, p.value and adjusted p.value.
+#'@return Table (data frame of class "pwadonis") with the pairwise factors, Df, SumsOfSqs, F-values, R^2,
+#' p.value, adjusted p.value and significance codes
+#' (0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1, applied to the adjusted p-values).
 #'
 #'@author Pedro Martinez Arbizu & Sylvain Monteux
 #'
@@ -49,81 +55,96 @@
 #'
 #'
 #'@export pairwise.adonis
-#'@importFrom stats p.adjust
+#'@importFrom stats p.adjust as.dist
 #'@importFrom utils combn
-#'@importFrom vegan adonis adonis2 vegdist
+#'@importFrom vegan adonis2 vegdist
 #'@importFrom cluster daisy
 
 
 pairwise.adonis <- function(x,factors, sim.function = 'vegdist', sim.method = 'bray', p.adjust.m ='bonferroni',reduce=NULL,perm=999)
 {
+  factors <- as.character(factors)
+  if (anyNA(factors))
+    stop("'factors' contains missing values")
 
-  co <- combn(unique(as.character(factors)),2)
-  pairs <- c()
-  Df <- c()
-  SumsOfSqs <- c()
-  F.Model <- c()
-  R2 <- c()
-  p.value <- c()
+  ## a symmetric square matrix is a distance matrix (same rule as adonis2)
+  if (!inherits(x, 'dist') && (is.matrix(x) || is.data.frame(x)) &&
+      nrow(x) == ncol(x) && is.numeric(as.matrix(x)) &&
+      isSymmetric(unname(as.matrix(x))))
+    x <- as.dist(x)
 
+  nobs <- if (inherits(x, 'dist')) attr(x, 'Size') else nrow(x)
+  if (length(factors) != nobs)
+    stop("'factors' must have one entry per row (observation) of 'x': ",
+         length(factors), " vs ", nobs)
 
-  for(elem in 1:ncol(co)){
+  lev <- unique(factors)
+  if (length(lev) < 2)
+    stop("'factors' must have at least two levels")
+
+  co <- combn(lev, 2)
+
+  ## restrict to pairs including the requested levels
+  if (!is.null(reduce)) {
+    keep.lev <- unlist(strsplit(reduce, '|', fixed = TRUE))
+    unknown <- setdiff(keep.lev, lev)
+    if (length(unknown))
+      warning("level(s) in 'reduce' not found in 'factors': ",
+              paste(unknown, collapse = ', '))
+    co <- co[, co[1, ] %in% keep.lev | co[2, ] %in% keep.lev, drop = FALSE]
+    if (ncol(co) == 0)
+      stop("no pairwise comparison left after applying 'reduce'")
+  }
+
+  pairs <- character(ncol(co))
+  Df <- SumsOfSqs <- F.Model <- R2 <- p.value <- numeric(ncol(co))
+
+  for(elem in seq_len(ncol(co))){
+    idx <- factors %in% co[, elem]
     if(inherits(x, 'dist')){
-      x1=as.matrix(x)[factors %in% c(as.character(co[1,elem]),as.character(co[2,elem])),
-                      factors %in% c(as.character(co[1,elem]),as.character(co[2,elem]))]
-      }
+      x1 <- as.dist(as.matrix(x)[idx, idx])
+    } else if (sim.function == 'daisy'){
+      x1 <- daisy(x[idx, , drop = FALSE], metric = sim.method)
+    } else {
+      x1 <- vegdist(x[idx, , drop = FALSE], method = sim.method)
+    }
 
-    else  (
-      if (sim.function == 'daisy'){
-            x1 = daisy(x[factors %in% c(co[1,elem],co[2,elem]),],metric=sim.method)
-        }
-      else{x1 = vegdist(x[factors %in% c(co[1,elem],co[2,elem]),],method=sim.method)}
-    )
+    x2 <- data.frame(Fac = factors[idx])
 
-    x2 = data.frame(Fac = factors[factors %in% c(co[1,elem],co[2,elem])])
-
-    ad <- adonis2(x1 ~ Fac, data = x2,
-                 permutations = perm);
-    pairs <- c(pairs,paste(co[1,elem],'vs',co[2,elem]));
-    Df <- c(Df,ad$Df[1])
-	SumsOfSqs <- c(SumsOfSqs,ad$SumOfSqs[1])
-	F.Model <- c(F.Model,ad$F[1]);
-    R2 <- c(R2,ad$R2[1]);
-    p.value <- c(p.value,ad$`Pr(>F)`[1])
+    ad <- adonis2(x1 ~ Fac, data = x2, permutations = perm)
+    pairs[elem] <- paste(co[1,elem],'vs',co[2,elem])
+    Df[elem] <- ad$Df[1]
+    SumsOfSqs[elem] <- ad$SumOfSqs[1]
+    F.Model[elem] <- ad$F[1]
+    R2[elem] <- ad$R2[1]
+    p.value[elem] <- ad$`Pr(>F)`[1]
   }
   p.adjusted <- p.adjust(p.value,method=p.adjust.m)
+  sig <- sig_codes(p.adjusted)
 
-  sig = c(rep('',length(p.adjusted)))
-  sig[p.adjusted <= 0.05] <-'.'
-  sig[p.adjusted <= 0.01] <-'*'
-  sig[p.adjusted <= 0.001] <-'**'
-  sig[p.adjusted <= 0.0001] <-'***'
   pairw.res <- data.frame(pairs,Df,SumsOfSqs,F.Model,R2,p.value,p.adjusted,sig)
-
-  if(!is.null(reduce)){
-    pairw.res <- subset (pairw.res, grepl(reduce,pairs))
-    pairw.res$p.adjusted <- p.adjust(pairw.res$p.value,method=p.adjust.m)
-
-    sig = c(rep('',length(pairw.res$p.adjusted)))
- 	sig[pairw.res$p.adjusted <= 0.1] <-'.'
-	sig[pairw.res$p.adjusted <= 0.05] <-'*'
-	sig[pairw.res$p.adjusted <= 0.01] <-'**'
-	sig[pairw.res$p.adjusted <= 0.001] <-'***'
-    pairw.res <- data.frame(pairw.res[,1:7],sig)
-  }
   class(pairw.res) <- c("pwadonis", "data.frame")
   return(pairw.res)
 }
 
+## standard significance codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+sig_codes <- function(p) {
+  sig <- rep('', length(p))
+  sig[!is.na(p) & p <= 0.1] <- '.'
+  sig[!is.na(p) & p <= 0.05] <- '*'
+  sig[!is.na(p) & p <= 0.01] <- '**'
+  sig[!is.na(p) & p <= 0.001] <- '***'
+  sig
+}
 
 ### Method summary
-summary.pwadonis = function(object, ...) {
+#'@export
+summary.pwadonis <- function(object, ...) {
   cat("Result of pairwise.adonis:\n")
   cat("\n")
-  print(object, ...)
+  print.data.frame(object, ...)
   cat("\n")
   cat("Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
+  invisible(object)
 }
 ## end of method summary
-
-

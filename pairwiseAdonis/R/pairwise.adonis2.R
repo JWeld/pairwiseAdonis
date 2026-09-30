@@ -1,20 +1,30 @@
-#'@title Pairwise multilevel comparison using adonis accepting strata
+#'@title Pairwise multilevel comparison using adonis2 accepting strata
 #'
 #'@description This is a wrapper function for multilevel pairwise comparison
-#' using adonis() from package 'vegan'. The function accepts interaction between factors and strata.
+#' using adonis2() from package 'vegan'. The function accepts interaction between factors and strata.
 #'
-#'@param x Model formula. The LHS is either community matrix or dissimilarity matrix (eg. from vegdist or dist)
-#' See adonis() for details. The RHS are factors that nmust be column names of a data.frame specified with argument data.
+#'@param x Model formula. The LHS is either community matrix or dissimilarity matrix (eg. from vegdist or dist;
+#' a symmetric square matrix is also treated as a dissimilarity matrix, as in adonis2()).
+#' See adonis2() for details. The RHS are factors that must be column names of a data.frame specified with argument data.
+#' Pairwise comparisons are made between the levels of the first variable on the RHS; the other
+#' terms of the formula are kept in the model for each pair.
 #'
-#'@param data The data frame of indipendent varibles having as column names the factors specified in formula.
+#'@param data The data frame of independent variables having as column names the factors specified in formula.
+#' It must have one row per row (observation) of the LHS.
 #'
 #'@param strata String. The name of the column with factors to be used as strata.
 #'
 #'@param nperm The number of permutations.
 #'
-#'@param ... Any other parameter passed to adonis
+#'@param ... Any other parameter passed to adonis2, for example \code{by} (see Details).
 #'
-#'@return List. Elements are the summary returned by adonis for each unique pairwise combination of factors.
+#'@details Since vegan 2.6-8 the default of adonis2() is \code{by = NULL}, an omnibus test of the whole
+#' model for each pair. To test each term of a model with several terms
+#' (e.g. \code{Y ~ NO3/field}) separately, as adonis2() did before vegan 2.6-8, pass
+#' \code{by = "terms"} (or \code{by = "margin"}), which is forwarded to adonis2().
+#'
+#'@return List of class "pwadstrata". The first element is the parent call; the remaining elements are the
+#' anova tables returned by adonis2 for each unique pairwise combination of levels.
 #'
 #'@author Pedro Martinez Arbizu
 #'
@@ -48,90 +58,106 @@
 #' adonis2(Y2 ~ NO3, data = dat2, permutations = perm)
 #' # and so on...
 #'
+#' # nested model, testing each term separately for each pair
+#' pairwise.adonis2(Y ~ NO3/field, data = dat, strata = 'field', by = "terms")
+#'
 #'@export pairwise.adonis2
 #'@importFrom utils combn
 #'@importFrom vegan adonis2 vegdist
 #'@import permute
-#'@importFrom stats as.dist as.formula model.frame
+#'@importFrom stats as.dist model.frame na.pass
 
 
 pairwise.adonis2 <- function(x, data, strata = NULL, nperm=999, ... ) {
 
+  if ('permutations' %in% names(list(...)))
+    stop("use arguments 'nperm' and 'strata' instead of 'permutations'")
+  if (!is.null(strata) && !(is.character(strata) && length(strata) == 1 && strata %in% names(data)))
+    stop("'strata' must be the name of a column of 'data', given as a string")
+
 #describe parent call function
 ststri <- ifelse(is.null(strata),'Null',strata)
 fostri <- as.character(x)
-#list to store results
 
 #copy model formula
    x1 <- x
 # extract left hand side of formula
   lhs <- eval(x1[[2]], environment(x1), globalenv())
   environment(x1) <- environment()
-# extract factors on right hand side of formula
-  rhs <- x1[[3]]
-# create model.frame matrix
+# a symmetric square matrix is a dissimilarity matrix (same rule as adonis2)
+  if ((is.matrix(lhs) || is.data.frame(lhs)) && nrow(lhs) == ncol(lhs) &&
+      is.numeric(as.matrix(lhs)) && isSymmetric(unname(as.matrix(lhs))))
+    lhs <- as.dist(lhs)
+  nobs <- if (inherits(lhs, 'dist')) attr(lhs, 'Size') else nrow(lhs)
+  if (nobs != nrow(data))
+    stop("the response and 'data' must have the same number of rows (observations): ",
+         nobs, " vs ", nrow(data))
+# create model.frame matrix (keep NA rows so that it stays aligned with data;
+# adonis2 handles NA through its na.action argument)
   x1[[2]] <- NULL
-  rhs.frame <- model.frame(x1, data, drop.unused.levels = TRUE)
+  rhs.frame <- model.frame(x1, data, drop.unused.levels = TRUE, na.action = na.pass)
+
+# grouping variable: first variable on the right hand side
+  grp <- as.character(rhs.frame[,1])
+  if (anyNA(grp))
+    stop("missing values in the grouping variable '", names(rhs.frame)[1], "'")
+  lev <- unique(grp)
+  if (length(lev) < 2)
+    stop("the grouping variable '", names(rhs.frame)[1], "' must have at least two levels")
 
 # create unique pairwise combination of factors
-  co <- combn(unique(as.character(rhs.frame[,1])),2)
+  co <- combn(lev, 2)
 
 # create names vector
-  nameres <- c('parent_call')
-  for (elem in 1:ncol(co)){
-  nameres <- c(nameres,paste(co[1,elem],co[2,elem],sep='_vs_'))
-  }
+  nameres <- c('parent_call', paste(co[1, ], co[2, ], sep = '_vs_'))
 #create results list
   res <- vector(mode="list", length=length(nameres))
   names(res) <- nameres
 
 #add parent call to res
-res['parent_call'] <- list(paste(fostri[2],fostri[1],fostri[3],', strata =',ststri, ', permutations',nperm ))
-
+res[['parent_call']] <- paste(fostri[2],fostri[1],fostri[3],', strata =',ststri, ', permutations',nperm )
 
 #start iteration trough pairwise combination of factors
- for(elem in 1:ncol(co)){
+ for(elem in seq_len(ncol(co))){
+
+  idx <- grp %in% co[, elem]
 
 #reduce model elements
-	if(inherits(eval(lhs),'dist')){
-	    xred <- as.dist(as.matrix(eval(lhs))[rhs.frame[,1] %in% c(co[1,elem],co[2,elem]),
-		rhs.frame[,1] %in% c(co[1,elem],co[2,elem])])
+	if(inherits(lhs,'dist')){
+	    xred <- as.dist(as.matrix(lhs)[idx, idx])
 	}else{
-	xred <- eval(lhs)[rhs.frame[,1] %in% c(co[1,elem],co[2,elem]),]
+	    xred <- lhs[idx, , drop = FALSE]
 	}
 
-	mdat1 <-  data[rhs.frame[,1] %in% c(co[1,elem],co[2,elem]),]
+	mdat1 <- data[idx, , drop = FALSE]
 
-# redefine formula
-	if(length(rhs) == 1){
-		xnew <- as.formula(paste('xred',as.character(rhs),sep='~'))
-		}else{
-		xnew <- as.formula(paste('xred' ,
-					paste(rhs[-1],collapse= as.character(rhs[1])),
-					sep='~'))}
+# redefine formula: same right hand side, reduced response
+	xnew <- x
+	xnew[[2]] <- as.name('xred')
+	environment(xnew) <- environment()
 
-#pass new formula to adonis
-	if(is.null(strata)){
-	ad <- adonis2(xnew,data=mdat1, ... )
-	}else{
+#pass new formula to adonis2
 	perm <- how(nperm = nperm)
-    setBlocks(perm) <- with(mdat1, mdat1[,ststri])
-    ad <- adonis2(xnew,data=mdat1,permutations = perm, ... )}
+	if(!is.null(strata)){
+	    setBlocks(perm) <- mdat1[[strata]]
+	}
+	ad <- adonis2(xnew, data = mdat1, permutations = perm, ... )
 
-  res[nameres[elem+1]] <- list(ad[1:5])
+  res[[nameres[elem+1]]] <- ad
   }
-  #names(res) <- names
   class(res) <- c("pwadstrata", "list")
   return(res)
 }
 
 
 ### Method summary
-summary.pwadstrata = function(object, ...) {
+#'@export
+summary.pwadstrata <- function(object, ...) {
   cat("Result of pairwise.adonis2:\n")
   cat("\n")
-  print(object[1], ...)
+  print(unclass(object), ...)
   cat("\n")
 
   cat("Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n")
+  invisible(object)
 }
