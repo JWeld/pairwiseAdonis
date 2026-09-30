@@ -2,7 +2,7 @@
 % Please edit documentation in R/pairwise.adonis.R
 \name{pairwise.adonis}
 \alias{pairwise.adonis}
-\title{Pairwise multilevel comparison using adonis}
+\title{Pairwise multilevel comparison using adonis2}
 \usage{
 pairwise.adonis(
   x,
@@ -15,9 +15,11 @@ pairwise.adonis(
 )
 }
 \arguments{
-\item{x}{Data frame (the community table), or "dist" object (user-supplied distance matrix).}
+\item{x}{Data frame or matrix (the community table), or "dist" object (user-supplied distance matrix).
+A symmetric square matrix is also treated as a distance matrix, as in adonis2().}
 
-\item{factors}{Vector (a column or vector with the levels to be compared pairwise).}
+\item{factors}{Vector (a column or vector with the levels to be compared pairwise).
+Must have one entry per row (observation) of x.}
 
 \item{sim.function}{Function used to calculate the similarity matrix,
 one of 'daisy' or 'vegdist' default is 'vegdist'. Ignored if x is a distance matrix.}
@@ -27,16 +29,20 @@ one of 'daisy' or 'vegdist' default is 'vegdist'. Ignored if x is a distance mat
 \item{p.adjust.m}{The p.value correction method, one of the methods supported by p.adjust(),
 default is 'bonferroni'.}
 
-\item{reduce}{String. Restrict comparison to pairs including these factors. If more than one factor, separate by pipes like  reduce = 'setosa|versicolor'}
+\item{reduce}{String. Restrict comparison to pairs including these factor levels. If more than one level,
+separate by pipes like  reduce = 'setosa|versicolor'. Levels are matched exactly. Only the retained
+comparisons are computed, and the p-value adjustment is applied to these comparisons only.}
 
-\item{perm}{The number of permutations.}
+\item{perm}{The number of permutations, or a permutation design from permute::how().}
 }
 \value{
-Table with the pairwise factors, Df, SumsOfSqs, F-values, R^2, p.value and adjusted p.value.
+Table (data frame of class "pwadonis") with the pairwise factors, Df, SumsOfSqs, F-values, R^2,
+p.value, adjusted p.value and significance codes
+(0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1, applied to the adjusted p-values).
 }
 \description{
 This is a wrapper function for multilevel pairwise comparison
-using adonis() from package 'vegan'. The function returns adjusted p-values using p.adjust().
+using adonis2() from package 'vegan'. The function returns adjusted p-values using p.adjust().
 }
 \examples{
 data(iris)

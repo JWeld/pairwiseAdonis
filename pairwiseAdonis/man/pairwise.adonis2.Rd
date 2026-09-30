@@ -2,28 +2,39 @@
 % Please edit documentation in R/pairwise.adonis2.R
 \name{pairwise.adonis2}
 \alias{pairwise.adonis2}
-\title{Pairwise multilevel comparison using adonis accepting strata}
+\title{Pairwise multilevel comparison using adonis2 accepting strata}
 \usage{
 pairwise.adonis2(x, data, strata = NULL, nperm = 999, ...)
 }
 \arguments{
-\item{x}{Model formula. The LHS is either community matrix or dissimilarity matrix (eg. from vegdist or dist)
-See adonis() for details. The RHS are factors that nmust be column names of a data.frame specified with argument data.}
+\item{x}{Model formula. The LHS is either community matrix or dissimilarity matrix (eg. from vegdist or dist;
+a symmetric square matrix is also treated as a dissimilarity matrix, as in adonis2()).
+See adonis2() for details. The RHS are factors that must be column names of a data.frame specified with argument data.
+Pairwise comparisons are made between the levels of the first variable on the RHS; the other
+terms of the formula are kept in the model for each pair.}
 
-\item{data}{The data frame of indipendent varibles having as column names the factors specified in formula.}
+\item{data}{The data frame of independent variables having as column names the factors specified in formula.
+It must have one row per row (observation) of the LHS.}
 
 \item{strata}{String. The name of the column with factors to be used as strata.}
 
 \item{nperm}{The number of permutations.}
 
-\item{...}{Any other parameter passed to adonis}
+\item{...}{Any other parameter passed to adonis2, for example \code{by} (see Details).}
 }
 \value{
-List. Elements are the summary returned by adonis for each unique pairwise combination of factors.
+List of class "pwadstrata". The first element is the parent call; the remaining elements are the
+anova tables returned by adonis2 for each unique pairwise combination of levels.
 }
 \description{
 This is a wrapper function for multilevel pairwise comparison
-using adonis() from package 'vegan'. The function accepts interaction between factors and strata.
+using adonis2() from package 'vegan'. The function accepts interaction between factors and strata.
+}
+\details{
+Since vegan 2.6-8 the default of adonis2() is \code{by = NULL}, an omnibus test of the whole
+model for each pair. To test each term of a model with several terms
+(e.g. \code{Y ~ NO3/field}) separately, as adonis2() did before vegan 2.6-8, pass
+\code{by = "terms"} (or \code{by = "margin"}), which is forwarded to adonis2().
 }
 \examples{
 data(iris)
@@ -54,6 +65,9 @@ Y2 <- Y[dat$NO3 \%in\% c('0','10'),]
 setBlocks(perm) <- with(dat2, field)
 adonis2(Y2 ~ NO3, data = dat2, permutations = perm)
 # and so on...
+
+# nested model, testing each term separately for each pair
+pairwise.adonis2(Y ~ NO3/field, data = dat, strata = 'field', by = "terms")
 
 }
 \author{

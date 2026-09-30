@@ -1,0 +1,61 @@
+data(iris)
+
+test_that("significance codes follow the standard thresholds", {
+  expect_equal(pairwiseAdonis:::sig_codes(c(0.2, 0.08, 0.03, 0.005, 0.0005, NA)),
+               c("", ".", "*", "**", "***", ""))
+})
+
+test_that("basic call returns one row per pair with expected columns", {
+  set.seed(1)
+  res <- pairwise.adonis(iris[, 1:4], iris$Species, perm = 49)
+  expect_s3_class(res, "pwadonis")
+  expect_equal(nrow(res), 3)
+  expect_named(res, c("pairs", "Df", "SumsOfSqs", "F.Model", "R2",
+                      "p.value", "p.adjusted", "sig"))
+  expect_equal(res$p.adjusted, p.adjust(res$p.value, "bonferroni"))
+})
+
+test_that("results agree with adonis2 on the same subset", {
+  idx <- iris$Species %in% c("setosa", "versicolor")
+  set.seed(7)
+  res <- pairwise.adonis(iris[, 1:4], iris$Species, perm = 49)[1, ]
+  set.seed(7)
+  ad <- adonis2(vegdist(iris[idx, 1:4]) ~ Species, data = iris[idx, ], permutations = 49)
+  expect_equal(res$SumsOfSqs, ad$SumOfSqs[1])
+  expect_equal(res$F.Model, ad$F[1])
+  expect_equal(res$R2, ad$R2[1])
+  expect_equal(res$p.value, ad$`Pr(>F)`[1])
+})
+
+test_that("dist input and symmetric matrix input give identical results", {
+  d <- vegdist(iris[, 1:4], "euclidean")
+  set.seed(3); a <- pairwise.adonis(d, iris$Species, perm = 49)
+  set.seed(3); b <- pairwise.adonis(as.matrix(d), iris$Species, perm = 49)
+  set.seed(3); c <- pairwise.adonis(iris[, 1:4], iris$Species, sim.method = "euclidean", perm = 49)
+  expect_equal(a, b)
+  expect_equal(a, c)
+})
+
+test_that("reduce matches levels exactly, not as a regular expression", {
+  set.seed(2)
+  X <- matrix(abs(rnorm(90)), 30)
+  f <- rep(c("a", "ab", "b"), each = 10)
+  res <- pairwise.adonis(X, f, reduce = "a", perm = 19)
+  expect_equal(res$pairs, c("a vs ab", "a vs b"))
+  res2 <- pairwise.adonis(X, f, reduce = "a|b", perm = 19)
+  expect_equal(nrow(res2), 3)
+  expect_warning(pairwise.adonis(X, f, reduce = "a|zzz", perm = 19), "not found")
+  expect_error(suppressWarnings(pairwise.adonis(X, f, reduce = "zzz", perm = 19)), "no pairwise comparison")
+})
+
+test_that("input checks give informative errors", {
+  expect_error(pairwise.adonis(iris[, 1:4], iris$Species[1:100]), "one entry per row")
+  expect_error(pairwise.adonis(iris[1:50, 1:4], iris$Species[1:50]), "at least two levels")
+  f <- iris$Species; f[1] <- NA
+  expect_error(pairwise.adonis(iris[, 1:4], f), "missing values")
+})
+
+test_that("summary method is dispatched", {
+  res <- pairwise.adonis(iris[, 1:4], iris$Species, perm = 9)
+  expect_output(summary(res), "Result of pairwise.adonis")
+})
