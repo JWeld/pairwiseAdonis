@@ -79,11 +79,15 @@ pairwise.adonis2 <- function(x, data, strata = NULL, nperm=999, ... ) {
 ststri <- ifelse(is.null(strata),'Null',strata)
 fostri <- as.character(x)
 
+# environment of the formula: right hand side variables not found in 'data'
+# and the response are looked up there, as in adonis2
+  fenv <- environment(x)
+  if (is.null(fenv)) fenv <- parent.frame()
 #copy model formula
    x1 <- x
+   environment(x1) <- fenv
 # extract left hand side of formula
-  lhs <- eval(x1[[2]], environment(x1), globalenv())
-  environment(x1) <- environment()
+  lhs <- eval(x1[[2]], fenv, globalenv())
 # a symmetric square matrix is a dissimilarity matrix (same rule as adonis2)
   if ((is.matrix(lhs) || is.data.frame(lhs)) && nrow(lhs) == ncol(lhs) &&
       is.numeric(as.matrix(lhs)) && isSymmetric(unname(as.matrix(lhs))))
@@ -131,10 +135,14 @@ res[['parent_call']] <- paste(fostri[2],fostri[1],fostri[3],', strata =',ststri,
 
 	mdat1 <- data[idx, , drop = FALSE]
 
-# redefine formula: same right hand side, reduced response
+# redefine formula: same right hand side, reduced response. The response is
+# put in a child of the original formula environment, so that functions and
+# objects of the caller used on the right hand side are still found.
+	xenv <- new.env(parent = fenv)
+	xenv$xred <- xred
 	xnew <- x
 	xnew[[2]] <- as.name('xred')
-	environment(xnew) <- environment()
+	environment(xnew) <- xenv
 
 #pass new formula to adonis2
 	perm <- how(nperm = nperm)

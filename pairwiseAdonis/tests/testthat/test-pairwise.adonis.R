@@ -59,3 +59,25 @@ test_that("summary method is dispatched", {
   res <- pairwise.adonis(iris[, 1:4], iris$Species, perm = 9)
   expect_output(summary(res), "Result of pairwise.adonis")
 })
+
+test_that("a how() design with blocks is reduced to each pair", {
+  set.seed(4)
+  dat <- expand.grid(rep = gl(2, 1), NO3 = factor(c(0, 10, 30)), field = gl(3, 1))
+  Y <- data.frame(A = with(dat, as.numeric(field) + as.numeric(NO3)) + abs(rnorm(18)),
+                  B = with(dat, as.numeric(field) - as.numeric(NO3) + 6) + abs(rnorm(18)))
+  h <- how(nperm = 49)
+  setBlocks(h) <- dat$field
+  set.seed(6); res <- pairwise.adonis(Y, dat$NO3, perm = h)
+  idx <- dat$NO3 %in% c("0", "10")
+  h2 <- how(nperm = 49)
+  setBlocks(h2) <- dat$field[idx]
+  set.seed(6); ad <- adonis2(vegdist(Y[idx, ]) ~ NO3, data = dat[idx, ], permutations = h2)
+  expect_equal(res$F.Model[1], ad$F[1])
+  expect_equal(res$p.value[1], ad$`Pr(>F)`[1])
+  # designs that cannot be reduced are refused
+  hp <- how(nperm = 49, plots = Plots(strata = dat$field))
+  expect_error(pairwise.adonis(Y, dat$NO3, perm = hp), "plot-level strata")
+  expect_error(pairwise.adonis(Y, dat$NO3, perm = shuffleSet(18, 9)), "permutation matrix")
+  setBlocks(h) <- dat$field[1:6]
+  expect_error(pairwise.adonis(Y, dat$NO3, perm = h), "one entry per observation")
+})
