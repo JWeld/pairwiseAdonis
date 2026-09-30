@@ -8,6 +8,8 @@ Description: This is a wrapper function for multilevel pairwise comparison using
 Depends: R (>= 3.5.0), vegan (>= 2.6-4), permute
 Imports: cluster, stats, utils
 Suggests: testthat (>= 3.0.0)
+URL: https://github.com/JWeld/pairwiseAdonis
+BugReports: https://github.com/JWeld/pairwiseAdonis/issues
 License: GPL-2 | GPL-3
 Encoding: UTF-8
 RoxygenNote: 7.3.1

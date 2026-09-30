@@ -72,41 +72,37 @@ For Unifrac:
 _________________________________________________________________________________________________
 
 ## INSTALLATION
-### For linux
 
-Note: I have experience myself an Error when installing from github.
+This repository is a fork of [pmartinezarbizu/pairwiseAdonis](https://github.com/pmartinezarbizu/pairwiseAdonis)
+with bug fixes and compatibility updates for current versions of vegan (see NEWS.md in the package).
+The instructions below install this fork. The package source lives in the `pairwiseAdonis/` subdirectory
+of the repository, which is why the path has three parts.
 
-Error converted from warning ... (https://github.com/r-lib/remotes/issues/403)
-To avoid this, load devtools and type first in your R session:
+The package is not on CRAN, so it is installed from GitHub with the `remotes` package
+(`devtools::install_github()` works the same way). vegan, permute and cluster are installed
+automatically if missing.
 
-```Sys.setenv("R_REMOTES_NO_ERRORS_FROM_WARNINGS"=TRUE)```
+In your R session:
 
-.... follow below
+```
+install.packages("remotes")
+remotes::install_github("JWeld/pairwiseAdonis/pairwiseAdonis")
+```
 
-make sure you have ```devtools``` installed and loaded, for windows also install ```Rtools```
+### Windows
+Building from source requires Rtools, which can be installed from https://cran.r-project.org/bin/windows/Rtools/
+(choose the version matching your R version). Then run the two lines above.
 
-In your R session
+### Troubleshooting
+If installation stops with "Error: Failed to install 'pairwiseAdonis' from GitHub: ... converted from warning"
+(https://github.com/r-lib/remotes/issues/403), set this before installing:
 
-```install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")```
+```
+Sys.setenv("R_REMOTES_NO_ERRORS_FROM_WARNINGS" = TRUE)
+```
 
-That's it
-
-Or...
-
-### For windows
-first install Rtools from here https://cran.r-project.org/bin/windows/Rtools/
-
-in R install devtools
-
-```install.packages('devtools')```
-
-load devtools
-
-```library(devtools)```
-
-In your R session
-
-```install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")```
+To install the original upstream package instead, replace `JWeld` with `pmartinezarbizu` in the
+`install_github()` call.
 
 ____________________________________
 ## Usage
