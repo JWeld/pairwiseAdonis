@@ -33,7 +33,10 @@ default is 'bonferroni'.}
 separate by pipes like  reduce = 'setosa|versicolor'. Levels are matched exactly. Only the retained
 comparisons are computed, and the p-value adjustment is applied to these comparisons only.}
 
-\item{perm}{The number of permutations, or a permutation design from permute::how().}
+\item{perm}{The number of permutations, or a permutation design from permute::how().
+Blocks defined in the design (setBlocks) are reduced to the observations of each pair;
+designs with plot-level strata (setPlots) and permutation matrices are not accepted,
+because each pair uses a different subset of the observations.}
 }
 \value{
 Table (data frame of class "pwadonis") with the pairwise factors, Df, SumsOfSqs, F-values, R^2,

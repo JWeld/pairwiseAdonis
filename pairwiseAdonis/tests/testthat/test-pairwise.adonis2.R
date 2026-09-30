@@ -62,3 +62,61 @@ test_that("summary method is dispatched", {
   res <- pairwise.adonis2(Y ~ NO3, data = dat, nperm = 9)
   expect_output(summary(res), "Result of pairwise.adonis2")
 })
+
+test_that("functions defined by the user can be used on the right hand side", {
+  # a function visible from the global environment, as in an interactive session
+  assign("my_tr", function(z) factor(z), envir = globalenv())
+  on.exit(rm("my_tr", envir = globalenv()))
+  res <- pairwise.adonis2(Y ~ my_tr(NO3num), data = dat, nperm = 9, by = "terms")
+  expect_named(res, c("parent_call", "0_vs_10", "0_vs_30", "10_vs_30"))
+  expect_equal(rownames(res[[2]])[1], "my_tr(NO3num)")
+})
+
+test_that("objects local to the caller are found when adonis2 itself supports it", {
+  # adonis2() replaces the formula environment up to vegan 2.7 and keeps it
+  # from vegan 2.8-0; the wrapper must not be more restrictive than adonis2()
+  adonis2_keeps_env <- function() {
+    h <- function() {
+      loc_tr <- function(z) factor(z)
+      adonis2(Y ~ loc_tr(NO3num), data = dat, permutations = 9)
+    }
+    !inherits(try(h(), silent = TRUE), "try-error")
+  }
+  skip_if_not(adonis2_keeps_env(), "adonis2() in this vegan version drops the formula environment")
+  f <- function() {
+    loc_tr <- function(z) factor(z)
+    pairwise.adonis2(Y ~ loc_tr(NO3num), data = dat, nperm = 9, by = "terms")
+  }
+  expect_equal(rownames(f()[[2]])[1], "loc_tr(NO3num)")
+  g <- function() {
+    cutoff <- 1.5
+    pairwise.adonis2(Y ~ NO3 + I(as.numeric(rep) > cutoff), data = dat, nperm = 9, by = "terms")
+  }
+  expect_equal(rownames(g()[["0_vs_30"]])[1:2], c("NO3", "I(as.numeric(rep) > cutoff)"))
+})
+
+test_that("NA in a secondary right hand side term keeps response and data aligned", {
+  datNA <- dat
+  datNA$field[18] <- NA   # an observation of level 30
+  # pair not involving the NA row: identical to the complete data
+  set.seed(8); a <- pairwise.adonis2(Y ~ NO3 + field, data = datNA, nperm = 49,
+                                     na.action = na.omit)[["0_vs_10"]]
+  set.seed(8); b <- pairwise.adonis2(Y ~ NO3 + field, data = dat, nperm = 49)[["0_vs_10"]]
+  expect_equal(as.data.frame(a), as.data.frame(b), ignore_attr = TRUE)
+  # pair involving the NA row: identical to adonis2 with na.omit on the manual subset
+  idx <- dat$NO3 %in% c("0", "30")
+  # (this pair is not the first computed, so the permutation p-values use a
+  # different random stream; compare the deterministic columns)
+  a <- pairwise.adonis2(Y ~ NO3 + field, data = datNA, nperm = 49, na.action = na.omit)[["0_vs_30"]]
+  b <- adonis2(Y[idx, ] ~ NO3 + field, data = datNA[idx, ], permutations = 49, na.action = na.omit)
+  expect_equal(as.data.frame(a)[, 1:4], as.data.frame(b)[, 1:4], ignore_attr = TRUE)
+  expect_equal(a$Df[length(a$Df)], sum(idx) - 2)
+  # same with a distance matrix response
+  d <- vegdist(Y, "euclidean")
+  a <- pairwise.adonis2(d ~ NO3 + field, data = datNA, nperm = 49, na.action = na.omit)[["0_vs_30"]]
+  b <- adonis2(as.dist(as.matrix(d)[idx, idx]) ~ NO3 + field, data = datNA[idx, ],
+               permutations = 49, na.action = na.omit)
+  expect_equal(as.data.frame(a)[, 1:4], as.data.frame(b)[, 1:4], ignore_attr = TRUE)
+  # default na.fail still errors for the affected pair only
+  expect_error(pairwise.adonis2(Y ~ NO3 + field, data = datNA, nperm = 9), "missing values")
+})

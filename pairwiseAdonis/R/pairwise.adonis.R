@@ -22,6 +22,9 @@
 #' comparisons are computed, and the p-value adjustment is applied to these comparisons only.
 #'
 #'@param perm The number of permutations, or a permutation design from permute::how().
+#' Blocks defined in the design (setBlocks) are reduced to the observations of each pair;
+#' designs with plot-level strata (setPlots) and permutation matrices are not accepted,
+#' because each pair uses a different subset of the observations.
 #'
 #'@return Table (data frame of class "pwadonis") with the pairwise factors, Df, SumsOfSqs, F-values, R^2,
 #' p.value, adjusted p.value and significance codes
@@ -59,6 +62,7 @@
 #'@importFrom utils combn
 #'@importFrom vegan adonis2 vegdist
 #'@importFrom cluster daisy
+#'@importFrom permute getBlocks getStrata
 
 
 pairwise.adonis <- function(x,factors, sim.function = 'vegdist', sim.method = 'bray', p.adjust.m ='bonferroni',reduce=NULL,perm=999)
@@ -81,6 +85,20 @@ pairwise.adonis <- function(x,factors, sim.function = 'vegdist', sim.method = 'b
   lev <- unique(factors)
   if (length(lev) < 2)
     stop("'factors' must have at least two levels")
+
+  ## permutation design: blocks are reduced to each pair, other
+  ## observation-specific designs cannot be reduced
+  blocks <- NULL
+  if (is.matrix(perm))
+    stop("'perm' cannot be a permutation matrix: each pair uses a subset of the observations")
+  if (inherits(perm, 'how')) {
+    if (!is.null(getStrata(perm, which = 'plots')))
+      stop("permutation designs with plot-level strata are not supported: ",
+           "use blocks (permute::setBlocks) or pairwise.adonis2() with 'strata'")
+    blocks <- getBlocks(perm)
+    if (!is.null(blocks) && length(blocks) != nobs)
+      stop("blocks of 'perm' must have one entry per observation of 'x'")
+  }
 
   co <- combn(lev, 2)
 
@@ -111,7 +129,11 @@ pairwise.adonis <- function(x,factors, sim.function = 'vegdist', sim.method = 'b
 
     x2 <- data.frame(Fac = factors[idx])
 
-    ad <- adonis2(x1 ~ Fac, data = x2, permutations = perm)
+    perm.i <- perm
+    if (!is.null(blocks))
+      setBlocks(perm.i) <- blocks[idx]
+
+    ad <- adonis2(x1 ~ Fac, data = x2, permutations = perm.i)
     pairs[elem] <- paste(co[1,elem],'vs',co[2,elem])
     Df[elem] <- ad$Df[1]
     SumsOfSqs[elem] <- ad$SumOfSqs[1]

@@ -39,6 +39,15 @@ vegan 2.7-6 (current CRAN release).
   variables were dropped when building the model frame, which could
   misalign the response and the data. Rows stay aligned; missing values
   are handled by `adonis2()` through its `na.action` argument.
+* `pairwise.adonis2()`: the environment of the model formula is kept, so
+  functions and objects of the caller used on the right-hand side are found
+  wherever `adonis2()` itself finds them (from vegan 2.8-0 `adonis2()` keeps
+  the formula environment too).
+* `pairwise.adonis()`: a permutation design from `permute::how()` with
+  blocks is reduced to the observations of each pair. Designs with
+  plot-level strata and permutation matrices are refused with an
+  informative error, because each pair uses a different subset of the
+  observations.
 * `summary()` methods for both result classes are now registered and work.
 * Informative errors when `factors`/`data` do not match the number of
   observations, when there are fewer than two levels, or when the grouping
