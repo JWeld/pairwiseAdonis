@@ -11,7 +11,8 @@ pairwise.adonis(
   sim.method = "bray",
   p.adjust.m = "bonferroni",
   reduce = NULL,
-  perm = 999
+  perm = 999,
+  ...
 )
 }
 \arguments{
@@ -19,24 +20,33 @@ pairwise.adonis(
 A symmetric square matrix is also treated as a distance matrix, as in adonis2().}
 
 \item{factors}{Vector (a column or vector with the levels to be compared pairwise).
-Must have one entry per row (observation) of x.}
+Must have one entry per row (observation) of x. If it is a factor, the pairs follow the order
+of its levels, otherwise the order in which the values first appear.}
 
 \item{sim.function}{Function used to calculate the similarity matrix,
 one of 'daisy' or 'vegdist' default is 'vegdist'. Ignored if x is a distance matrix.}
 
-\item{sim.method}{Similarity method from daisy or vegdist, default is 'bray'. Ignored if x is a distance matrix.}
+\item{sim.method}{Similarity method from daisy or vegdist, default is 'bray'. With daisy it must be
+one of 'euclidean', 'manhattan' or 'gower'. Ignored if x is a distance matrix.}
 
 \item{p.adjust.m}{The p.value correction method, one of the methods supported by p.adjust(),
 default is 'bonferroni'.}
 
 \item{reduce}{String. Restrict comparison to pairs including these factor levels. If more than one level,
-separate by pipes like  reduce = 'setosa|versicolor'. Levels are matched exactly. Only the retained
-comparisons are computed, and the p-value adjustment is applied to these comparisons only.}
+separate by pipes like  reduce = 'setosa|versicolor'. Levels are matched exactly (spaces around the
+pipes are ignored). Only the retained comparisons are computed, and the p-value adjustment is
+applied to these comparisons only.}
 
 \item{perm}{The number of permutations, or a permutation design from permute::how().
-Blocks defined in the design (setBlocks) are reduced to the observations of each pair;
-designs with plot-level strata (setPlots) and permutation matrices are not accepted,
+Blocks defined in the design (setBlocks) are reduced to the observations of each pair.
+Designs with plot-level strata (setPlots), restricted permutations within blocks
+(Within() of type 'series' or 'grid') and permutation matrices are not accepted,
 because each pair uses a different subset of the observations.}
+
+\item{...}{Further named arguments. \code{sqrt.dist}, \code{add} and \code{parallel} are passed
+to adonis2(), all others to the distance function (vegdist() or daisy()), for example
+\code{binary = TRUE} for presence/absence indices with vegdist(). Arguments for the distance
+function are ignored if x is a distance matrix.}
 }
 \value{
 Table (data frame of class "pwadonis") with the pairwise factors, Df, SumsOfSqs, F-values, R^2,
@@ -70,6 +80,10 @@ pairwise.adonis(iris[,1:4],iris$Species, reduce='setosa')
 
 #for more than one factor separate by pipes
 pairwise.adonis(iris[,1:4],iris$Species, reduce='setosa|versicolor')
+
+#presence/absence (Jaccard) dissimilarities: binary = TRUE is passed to vegdist()
+data(dune, dune.env)
+pairwise.adonis(dune, dune.env$Management, sim.method = 'jaccard', binary = TRUE)
 
 
 }

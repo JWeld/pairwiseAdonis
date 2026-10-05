@@ -24,7 +24,8 @@ test_that("results with strata equal a manual adonis2 call on the subset", {
   idx <- dat$NO3 %in% c("0", "10")
   perm <- how(nperm = 99)
   setBlocks(perm) <- dat$field[idx]
-  set.seed(5); a <- pairwise.adonis2(Y ~ NO3, data = dat, strata = "field", nperm = 99)[["0_vs_10"]]
+  set.seed(5); a <- pairwise.adonis2(Y ~ NO3, data = dat, strata = "field", nperm = 99,
+                                     p.adjust.m = "none")[["0_vs_10"]]
   set.seed(5); b <- adonis2(Y[idx, ] ~ NO3, data = dat[idx, ], permutations = perm)
   expect_equal(as.data.frame(a), as.data.frame(b), ignore_attr = TRUE)
 })
@@ -56,6 +57,116 @@ test_that("input checks give informative errors", {
   datNA <- dat; datNA$NO3[1] <- NA
   expect_error(pairwise.adonis2(Y ~ NO3, data = datNA), "missing values in the grouping")
   expect_error(pairwise.adonis2(Y[dat$NO3 == "0", ] ~ NO3, data = dat[dat$NO3 == "0", ]), "at least two levels")
+  expect_error(pairwise.adonis2("Y ~ NO3", data = dat), "model formula")
+  expect_error(pairwise.adonis2(~ NO3, data = dat), "model formula")
+  expect_error(pairwise.adonis2(Y ~ NO3, data = as.list(dat)), "data frame")
+  expect_error(pairwise.adonis2(Y ~ 1, data = dat), "grouping variable")
+  expect_error(pairwise.adonis2(Y ~ NO3, data = dat, p.adjust.m = "nope"), "should be one of")
+})
+
+test_that("a numeric grouping variable gives a warning; pairs follow factor levels", {
+  # numeric group codes: warned, same results as with factor()
+  set.seed(1)
+  expect_warning(a <- pairwise.adonis2(Y ~ NO3num, data = dat, nperm = 49),
+                 "3 distinct values are compared pairwise \\(3 comparisons\\).*factor\\(NO3num\\)")
+  set.seed(1)
+  b <- pairwise.adonis2(Y ~ factor(NO3num), data = dat, nperm = 49)
+  expect_named(a, names(b))
+  expect_equal(as.data.frame(a[[2]]), as.data.frame(b[[2]]), ignore_attr = TRUE)
+  expect_error(pairwise.adonis2(Y ~ poly(NO3num, 2), data = dat), "not a matrix")
+  expect_named(pairwise.adonis2(Y ~ I(NO3 == "0"), data = dat, nperm = 9),
+               c("parent_call", "FALSE_vs_TRUE"))
+  dat5 <- dat
+  dat5$NO3 <- factor(dat5$NO3, levels = c("30", "0", "10"))
+  expect_named(pairwise.adonis2(Y ~ NO3, data = dat5, nperm = 9),
+               c("parent_call", "30_vs_0", "30_vs_10", "0_vs_10"))
+  dat5$NO3 <- as.character(dat5$NO3)
+  expect_named(pairwise.adonis2(Y ~ NO3, data = dat5, nperm = 9),
+               c("parent_call", "0_vs_10", "0_vs_30", "10_vs_30"))
+})
+
+test_that("p-values of the first row are adjusted across the pairs", {
+  set.seed(3); res <- pairwise.adonis2(Y ~ NO3, data = dat, nperm = 49)
+  p <- sapply(res[-1], function(a) a[1, "Pr(>F)"])
+  padj <- sapply(res[-1], function(a) a[1, "Pr(adj)"])
+  expect_equal(padj, p.adjust(p, "bonferroni"))
+  expect_true(all(is.na(res[[2]][-1, "Pr(adj)"])))
+  expect_true(any(grepl("adjusted for 3 pairwise comparisons (bonferroni)",
+                        attr(res[[2]], "heading"), fixed = TRUE)))
+  set.seed(3); res2 <- pairwise.adonis2(Y ~ NO3, data = dat, nperm = 49, p.adjust.m = "holm")
+  expect_equal(sapply(res2[-1], function(a) a[1, "Pr(adj)"]), p.adjust(p, "holm"))
+  res3 <- pairwise.adonis2(Y ~ NO3, data = dat, nperm = 9, p.adjust.m = "none")
+  expect_false("Pr(adj)" %in% names(res3[[2]]))
+  # with by = "terms" the first row is the grouping variable
+  res4 <- pairwise.adonis2(Y ~ NO3/field, data = dat, nperm = 9, by = "terms")
+  expect_equal(rownames(res4[[2]])[!is.na(res4[[2]][["Pr(adj)"]])], "NO3")
+  expect_output(print(res4[[2]]), "Pr(adj)", fixed = TRUE)
+})
+
+test_that("missing values with strata keep the permutation blocks aligned", {
+  datNA <- dat
+  datNA$rep[2] <- NA   # an observation of level 0
+  idx <- dat$NO3 %in% c("0", "10") & !is.na(datNA$rep)
+  set.seed(5); a <- pairwise.adonis2(Y ~ NO3 + rep, data = datNA, strata = "field", nperm = 99,
+                                     na.action = na.omit, p.adjust.m = "none")[["0_vs_10"]]
+  perm <- how(nperm = 99)
+  setBlocks(perm) <- dat$field[idx]
+  set.seed(5); b <- adonis2(Y[idx, ] ~ NO3 + rep, data = datNA[idx, ], permutations = perm)
+  expect_equal(as.data.frame(a), as.data.frame(b), ignore_attr = TRUE)
+  expect_error(pairwise.adonis2(Y ~ NO3 + rep, data = datNA, strata = "field"), "na.action = na.omit")
+  # missing values in the grouping variable are dropped with na.omit too
+  datG <- dat
+  datG$NO3[1] <- NA
+  res <- pairwise.adonis2(Y ~ NO3, data = datG, nperm = 9, na.action = na.omit)
+  expect_equal(tail(res[["0_vs_10"]]$Df, 1), 10)
+  # missing values in the strata column
+  datS <- dat
+  datS$field[3] <- NA
+  expect_error(pairwise.adonis2(Y ~ NO3, data = datS, strata = "field"), "strata column")
+})
+
+test_that("a stratum absent from a pair is handled", {
+  dat1 <- dat
+  # block "4" contains only observations of level 30
+  dat1$blk <- factor(ifelse(dat$NO3 == "30" & dat$field == "3", "4", as.character(dat$field)))
+  idx <- dat$NO3 %in% c("0", "10")
+  perm <- how(nperm = 99)
+  setBlocks(perm) <- dat1$blk[idx]
+  set.seed(5); a <- pairwise.adonis2(Y ~ NO3, data = dat1, strata = "blk", nperm = 99,
+                                     p.adjust.m = "none")[["0_vs_10"]]
+  set.seed(5); b <- adonis2(Y[idx, ] ~ NO3, data = dat1[idx, ], permutations = perm)
+  expect_equal(as.data.frame(a), as.data.frame(b), ignore_attr = TRUE)
+})
+
+test_that("headings and the parent call describe the comparison", {
+  res <- pairwise.adonis2(Y ~ NO3, data = dat, strata = "field", nperm = 9, by = "terms")
+  h <- attr(res[["0_vs_30"]], "heading")
+  expect_true(any(grepl("Blocks: +field", h)))
+  expect_true(any(grepl("Pairwise comparison 0 vs 30 of NO3 in Y ~ NO3", h, fixed = TRUE)))
+  expect_match(res$parent_call, 'by = "terms"', fixed = TRUE)
+  expect_match(res$parent_call, "p.adjust.m = bonferroni", fixed = TRUE)
+  out <- capture.output(print(res))
+  expect_false(any(grepl("attr(,\"class\")", out, fixed = TRUE)))
+})
+
+test_that("Condition() terms are separated from the grouping variable", {
+  s <- pairwiseAdonis:::split_condition(quote(Condition(field) + NO3 + Condition(rep)))
+  expect_identical(s$rest, quote(NO3))
+  expect_identical(s$cond, list(quote(field), quote(rep)))
+  expect_error(pairwise.adonis2(Y ~ Condition(field), data = dat), "outside Condition")
+})
+
+test_that("Condition() terms are passed to adonis2 when it supports them", {
+  # adonis2() accepts Condition() from vegan 2.8-0
+  adonis2_has_condition <- !inherits(try(adonis2(Y ~ NO3 + Condition(field), data = dat,
+                                                 permutations = 9), silent = TRUE), "try-error")
+  skip_if_not(adonis2_has_condition, "adonis2() in this vegan version does not accept Condition()")
+  idx <- dat$NO3 %in% c("0", "10")
+  set.seed(5); a <- pairwise.adonis2(Y ~ Condition(field) + NO3, data = dat, nperm = 49,
+                                     p.adjust.m = "none")
+  expect_named(a, c("parent_call", "0_vs_10", "0_vs_30", "10_vs_30"))
+  set.seed(5); b <- adonis2(Y[idx, ] ~ Condition(field) + NO3, data = dat[idx, ], permutations = 49)
+  expect_equal(as.data.frame(a[["0_vs_10"]]), as.data.frame(b), ignore_attr = TRUE)
 })
 
 test_that("summary method is dispatched", {
@@ -100,8 +211,9 @@ test_that("NA in a secondary right hand side term keeps response and data aligne
   datNA$field[18] <- NA   # an observation of level 30
   # pair not involving the NA row: identical to the complete data
   set.seed(8); a <- pairwise.adonis2(Y ~ NO3 + field, data = datNA, nperm = 49,
-                                     na.action = na.omit)[["0_vs_10"]]
-  set.seed(8); b <- pairwise.adonis2(Y ~ NO3 + field, data = dat, nperm = 49)[["0_vs_10"]]
+                                     na.action = na.omit, p.adjust.m = "none")[["0_vs_10"]]
+  set.seed(8); b <- pairwise.adonis2(Y ~ NO3 + field, data = dat, nperm = 49,
+                                     p.adjust.m = "none")[["0_vs_10"]]
   expect_equal(as.data.frame(a), as.data.frame(b), ignore_attr = TRUE)
   # pair involving the NA row: identical to adonis2 with na.omit on the manual subset
   idx <- dat$NO3 %in% c("0", "30")

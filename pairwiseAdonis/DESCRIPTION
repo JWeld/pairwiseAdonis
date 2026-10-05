@@ -1,8 +1,11 @@
 Package: pairwiseAdonis
 Title: Pairwise Multilevel Comparison using Adonis
-Version: 0.4.2
-Date: 2026-09-30
-Authors@R: person("Pedro", "Martinez Arbizu", email = "pmartinez@senckenberg.de", role = c("aut", "cre"))
+Version: 0.5.0
+Date: 2026-10-05
+Authors@R: c(person("Pedro", "Martinez Arbizu", email = "pmartinez@senckenberg.de", role = "aut"),
+             person("Sylvain", "Monteux", role = "aut"),
+             person("James", "Weldon", email = "JWeld@users.noreply.github.com", role = c("ctb", "cre"),
+                    comment = "maintainer of this fork"))
 Description: This is a wrapper function for multilevel pairwise comparison using adonis2() from package 'vegan'.
 			The function returns adjusted p-values using p.adjust().
 Depends: R (>= 3.5.0), vegan (>= 2.6-4), permute
