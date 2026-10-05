@@ -64,11 +64,16 @@ test_that("input checks give informative errors", {
   expect_error(pairwise.adonis2(Y ~ NO3, data = dat, p.adjust.m = "nope"), "should be one of")
 })
 
-test_that("the grouping variable must be categorical; pairs follow its levels", {
-  dat4 <- dat
-  dat4$pH <- seq(5, 6.7, by = 0.1)
-  expect_error(pairwise.adonis2(Y ~ pH + NO3, data = dat4), "must be a factor")
-  expect_error(pairwise.adonis2(Y ~ NO3num, data = dat), "factor\\(NO3num\\)")
+test_that("a numeric grouping variable gives a warning; pairs follow factor levels", {
+  # numeric group codes: warned, same results as with factor()
+  set.seed(1)
+  expect_warning(a <- pairwise.adonis2(Y ~ NO3num, data = dat, nperm = 49),
+                 "3 distinct values are compared pairwise \\(3 comparisons\\).*factor\\(NO3num\\)")
+  set.seed(1)
+  b <- pairwise.adonis2(Y ~ factor(NO3num), data = dat, nperm = 49)
+  expect_named(a, names(b))
+  expect_equal(as.data.frame(a[[2]]), as.data.frame(b[[2]]), ignore_attr = TRUE)
+  expect_error(pairwise.adonis2(Y ~ poly(NO3num, 2), data = dat), "not a matrix")
   expect_named(pairwise.adonis2(Y ~ I(NO3 == "0"), data = dat, nperm = 9),
                c("parent_call", "FALSE_vs_TRUE"))
   dat5 <- dat

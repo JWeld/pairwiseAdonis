@@ -17,9 +17,10 @@ pairwise.adonis2(
 \item{x}{Model formula. The LHS is either community matrix or dissimilarity matrix (eg. from vegdist or dist;
 a symmetric square matrix is also treated as a dissimilarity matrix, as in adonis2()).
 See adonis2() for details. The RHS are factors that must be column names of a data.frame specified with argument data.
-Pairwise comparisons are made between the levels of the first variable on the RHS, which must be a
-factor, character or logical vector (use e.g. \code{factor(x)} in the formula for numeric group codes);
-if it is a factor, the pairs follow the order of its levels. The other terms of the formula are kept
+Pairwise comparisons are made between the levels of the first variable on the RHS, which should be a
+factor, character or logical vector. A numeric variable gives a warning, because each pair of its
+distinct values is compared (use e.g. \code{factor(x)} in the formula for numeric group codes).
+If it is a factor, the pairs follow the order of its levels. The other terms of the formula are kept
 in the model for each pair. \code{Condition()} terms for partial models (vegan >= 2.8-0) are passed
 to adonis2() and are never used as grouping variable.}
 

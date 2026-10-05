@@ -6,9 +6,10 @@
 #'@param x Model formula. The LHS is either community matrix or dissimilarity matrix (eg. from vegdist or dist;
 #' a symmetric square matrix is also treated as a dissimilarity matrix, as in adonis2()).
 #' See adonis2() for details. The RHS are factors that must be column names of a data.frame specified with argument data.
-#' Pairwise comparisons are made between the levels of the first variable on the RHS, which must be a
-#' factor, character or logical vector (use e.g. \code{factor(x)} in the formula for numeric group codes);
-#' if it is a factor, the pairs follow the order of its levels. The other terms of the formula are kept
+#' Pairwise comparisons are made between the levels of the first variable on the RHS, which should be a
+#' factor, character or logical vector. A numeric variable gives a warning, because each pair of its
+#' distinct values is compared (use e.g. \code{factor(x)} in the formula for numeric group codes).
+#' If it is a factor, the pairs follow the order of its levels. The other terms of the formula are kept
 #' in the model for each pair. \code{Condition()} terms for partial models (vegan >= 2.8-0) are passed
 #' to adonis2() and are never used as grouping variable.
 #'
@@ -174,14 +175,18 @@ if (length(dotexpr)) {
 # grouping variable: first variable on the right hand side
   gvar <- grp.frame[[1]]
   gname <- names(grp.frame)[1]
-  if (!(is.factor(gvar) || is.character(gvar) || is.logical(gvar)))
+  if (!is.null(dim(gvar)))
     stop("the grouping variable '", gname, "' (the first variable on the right hand side) ",
-         "must be a factor, character or logical vector: use factor(", gname,
-         ") in the formula if its values are group codes")
+         "must be a vector, not a matrix")
   grp <- as.character(gvar)
   lev <- if (is.character(gvar)) unique(grp) else levels(droplevels(as.factor(gvar)))
   if (length(lev) < 2)
     stop("the grouping variable '", gname, "' must have at least two levels")
+  if (is.numeric(gvar))
+    warning("the grouping variable '", gname, "' (the first variable on the right hand side) ",
+            "is numeric: its ", length(lev), " distinct values are compared pairwise (",
+            choose(length(lev), 2), " comparisons). Use factor(", gname,
+            ") in the formula if these are group codes, or put the grouping factor first")
 
 # create unique pairwise combination of factors
   co <- combn(lev, 2)

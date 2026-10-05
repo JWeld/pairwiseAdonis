@@ -32,10 +32,11 @@ the `adonis2()` code of vegan 2.7-6 and of the development version 2.8-0.
   design) gave a cryptic "subscript out of bounds" error. They now give an
   informative error.
 * `pairwise.adonis2()`: a numeric first variable on the right-hand side was
-  treated as a grouping variable, giving one comparison for every pair of
-  distinct values (e.g. 78 comparisons for a pH variable). The grouping
-  variable must now be a factor, character or logical vector; use
-  `factor(x)` in the formula for numeric group codes.
+  silently treated as a grouping variable, giving one comparison for every
+  pair of distinct values (e.g. 78 comparisons for a pH variable). This now
+  gives a warning that names the variable and the number of comparisons;
+  use `factor(x)` in the formula for numeric group codes. A matrix-valued
+  first variable (e.g. `poly(x, 2)`) gives an error.
 * `pairwise.adonis()`: `how()` designs with restricted permutations within
   blocks (`Within(type = "series")` or `"grid"`) were applied to the subset
   of each pair, where their spatial or temporal structure no longer holds

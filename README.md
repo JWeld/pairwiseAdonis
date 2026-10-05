@@ -29,8 +29,8 @@ The reduced data are passed to adonis and the summary of the anova table for eac
 
 update 05.10.2026 (version 0.4.3)
 pairwise.adonis2 now adjusts p-values for multiple comparisons (column `Pr(adj)`; use `p.adjust.m = 'none'` for the
-previous output). `na.action = na.omit` now works together with `strata`, missing values in strata and a numeric
-grouping variable give informative errors, and pairs follow the order of the factor levels. pairwise.adonis passes
+previous output). `na.action = na.omit` now works together with `strata`, missing values in strata give an informative
+error, a numeric grouping variable gives a warning, and pairs follow the order of the factor levels. pairwise.adonis passes
 further arguments to vegdist (e.g. `binary = TRUE`) or adonis2 (`sqrt.dist`, `add`, `parallel`) and refuses
 restricted within-block permutation designs (series, grid). See NEWS.md in the package for the full list.
 
