@@ -4,14 +4,24 @@
 \alias{pairwise.adonis2}
 \title{Pairwise multilevel comparison using adonis2 accepting strata}
 \usage{
-pairwise.adonis2(x, data, strata = NULL, nperm = 999, ...)
+pairwise.adonis2(
+  x,
+  data,
+  strata = NULL,
+  nperm = 999,
+  p.adjust.m = "bonferroni",
+  ...
+)
 }
 \arguments{
 \item{x}{Model formula. The LHS is either community matrix or dissimilarity matrix (eg. from vegdist or dist;
 a symmetric square matrix is also treated as a dissimilarity matrix, as in adonis2()).
 See adonis2() for details. The RHS are factors that must be column names of a data.frame specified with argument data.
-Pairwise comparisons are made between the levels of the first variable on the RHS; the other
-terms of the formula are kept in the model for each pair.}
+Pairwise comparisons are made between the levels of the first variable on the RHS, which must be a
+factor, character or logical vector (use e.g. \code{factor(x)} in the formula for numeric group codes);
+if it is a factor, the pairs follow the order of its levels. The other terms of the formula are kept
+in the model for each pair. \code{Condition()} terms for partial models (vegan >= 2.8-0) are passed
+to adonis2() and are never used as grouping variable.}
 
 \item{data}{The data frame of independent variables having as column names the factors specified in formula.
 It must have one row per row (observation) of the LHS.}
@@ -20,11 +30,19 @@ It must have one row per row (observation) of the LHS.}
 
 \item{nperm}{The number of permutations.}
 
-\item{...}{Any other parameter passed to adonis2, for example \code{by} (see Details).}
+\item{p.adjust.m}{The p-value correction method, one of the methods supported by p.adjust(),
+default is 'bonferroni'. The p-value in the first row of the table of each pair (see Details) is
+adjusted for the number of pairwise comparisons and added as column \code{Pr(adj)}; the
+significance codes then refer to the adjusted p-values. The unadjusted p-values stay in column
+\code{Pr(>F)}. With 'none' no column is added.}
+
+\item{...}{Any other parameter passed to adonis2, for example \code{by} (see Details) or
+\code{na.action}.}
 }
 \value{
 List of class "pwadstrata". The first element is the parent call; the remaining elements are the
-anova tables returned by adonis2 for each unique pairwise combination of levels.
+anova tables returned by adonis2 for each unique pairwise combination of levels, with the
+adjusted p-values in column \code{Pr(adj)} (unless \code{p.adjust.m = 'none'}).
 }
 \description{
 This is a wrapper function for multilevel pairwise comparison
@@ -35,6 +53,16 @@ Since vegan 2.6-8 the default of adonis2() is \code{by = NULL}, an omnibus test 
 model for each pair. To test each term of a model with several terms
 (e.g. \code{Y ~ NO3/field}) separately, as adonis2() did before vegan 2.6-8, pass
 \code{by = "terms"} (or \code{by = "margin"}), which is forwarded to adonis2().
+
+The adjusted p-value refers to the first row of each table. This is the test of the grouping
+variable when it is the only term of the model, or with \code{by = "terms"}, where the grouping
+variable is the first term. With several terms and \code{by = NULL} the first row is the
+omnibus test of the whole model for the pair.
+
+Observations with missing values in the variables on the RHS are dropped before the pairs are
+formed when \code{na.action} (passed to adonis2) allows it, for example \code{na.action = na.omit};
+with the default \code{na.fail} they give an error. Missing values in the strata column always
+give an error.
 }
 \examples{
 data(iris)
@@ -58,6 +86,7 @@ pairwise.adonis2(Y ~ NO3, data = dat, strata = 'field')
 #notice the apostrophes in strata = 'field' !
 
 #this will give same results a doing adonis2 pairwise one by one
+#(apart from the adjusted p-values in column Pr(adj))
 
 #for factors '0' and '10'
 dat2 <- dat[dat$NO3 \%in\% c('0','10'),]

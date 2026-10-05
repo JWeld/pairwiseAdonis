@@ -1,14 +1,14 @@
 # pairwiseAdonis
-# version 0.4.2 includes 2 functions
+# version 0.4.3 includes 2 functions
 pairwise.adonis
 
 pairwise.adonis2
 
 # pairwise.adonis
-This is a wrapper function for multilevel pairwise comparison using adonis2 (~Permanova) from package 'vegan'. The function returns adjusted p-values using p.adjust(). It does not accept interaction between factors neither strata.
+This is a wrapper function for multilevel pairwise comparison using adonis2 (~Permanova) from package 'vegan'. The function returns adjusted p-values using p.adjust(). It does not accept interaction between factors. Blocks (strata) can be given as a permutation design, e.g. `perm <- how(nperm = 999); setBlocks(perm) <- field`, passed as `perm = perm`.
 
 # pairwise.adonis2
-This function accepts strata
+This function accepts strata. Since version 0.4.3 it also adjusts the p-values for multiple comparisons (argument `p.adjust.m`, default `'bonferroni'`; adjusted p-values in column `Pr(adj)` of each table).
 
 NOTE: This is still a developing version -- Please validate your results.
 I would appreciate feed back.
@@ -26,6 +26,13 @@ This function accepts a model formula like in adonis from vegan. You can use int
 - the strata if used.
 
 The reduced data are passed to adonis and the summary of the anova table for each pair is saved in a list, together with the anova table of the full model and the original 'parent call'.
+
+update 05.10.2026 (version 0.4.3)
+pairwise.adonis2 now adjusts p-values for multiple comparisons (column `Pr(adj)`; use `p.adjust.m = 'none'` for the
+previous output). `na.action = na.omit` now works together with `strata`, missing values in strata and a numeric
+grouping variable give informative errors, and pairs follow the order of the factor levels. pairwise.adonis passes
+further arguments to vegdist (e.g. `binary = TRUE`) or adonis2 (`sqrt.dist`, `add`, `parallel`) and refuses
+restricted within-block permutation designs (series, grid). See NEWS.md in the package for the full list.
 
 update 30.09.2026 (version 0.4.2)
 Checked against vegan 2.6-4 and vegan 2.7-6 (adonis() is defunct since vegan 2.7-1; the package only uses adonis2()).
@@ -117,7 +124,8 @@ Agropyron <- with(dat, as.numeric(field) + as.numeric(NO3)+2) +rnorm(18)/2
 Schizachyrium <- with(dat, as.numeric(field) - as.numeric(NO3)+2) +rnorm(18)/2
 Y <- data.frame(Agropyron, Schizachyrium)
 
-pairwise.adonis2(Y ~ NO3/field, data = dat, strata = 'field')
+# one row per term (vegan >= 2.6-8 otherwise tests the whole model for each pair)
+pairwise.adonis2(Y ~ NO3/field, data = dat, strata = 'field', by = "terms")
 ```
 
 for more examples see also
@@ -126,4 +134,10 @@ for more examples see also
 _____________________________________________
 ## Citation
 
-Martinez Arbizu, P. (2020). pairwiseAdonis: Pairwise multilevel comparison using adonis. R package version 0.4.2
+Please cite the original package:
+
+Martinez Arbizu, P. (2020). pairwiseAdonis: Pairwise multilevel comparison using adonis. R package version 0.4.
+https://github.com/pmartinezarbizu/pairwiseAdonis
+
+If you used this fork, please also give its version and address, e.g. "pairwiseAdonis version 0.4.3
+(https://github.com/JWeld/pairwiseAdonis)".
