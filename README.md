@@ -1,5 +1,5 @@
 # pairwiseAdonis
-# version 0.4.3 includes 2 functions
+# version 0.5.0 includes 2 functions
 pairwise.adonis
 
 pairwise.adonis2
@@ -8,7 +8,7 @@ pairwise.adonis2
 This is a wrapper function for multilevel pairwise comparison using adonis2 (~Permanova) from package 'vegan'. The function returns adjusted p-values using p.adjust(). It does not accept interaction between factors. Blocks (strata) can be given as a permutation design, e.g. `perm <- how(nperm = 999); setBlocks(perm) <- field`, passed as `perm = perm`.
 
 # pairwise.adonis2
-This function accepts strata. Since version 0.4.3 it also adjusts the p-values for multiple comparisons (argument `p.adjust.m`, default `'bonferroni'`; adjusted p-values in column `Pr(adj)` of each table).
+This function accepts strata. Since version 0.5.0 it also adjusts the p-values for multiple comparisons (argument `p.adjust.m`, default `'bonferroni'`; adjusted p-values in column `Pr(adj)` of each table).
 
 NOTE: This is still a developing version -- Please validate your results.
 I would appreciate feed back.
@@ -27,7 +27,7 @@ This function accepts a model formula like in adonis from vegan. You can use int
 
 The reduced data are passed to adonis and the summary of the anova table for each pair is saved in a list, together with the anova table of the full model and the original 'parent call'.
 
-update 05.10.2026 (version 0.4.3)
+update 05.10.2026 (version 0.5.0)
 pairwise.adonis2 now adjusts p-values for multiple comparisons (column `Pr(adj)`; use `p.adjust.m = 'none'` for the
 previous output). `na.action = na.omit` now works together with `strata`, missing values in strata give an informative
 error, a numeric grouping variable gives a warning, and pairs follow the order of the factor levels. pairwise.adonis passes
@@ -139,5 +139,5 @@ Please cite the original package:
 Martinez Arbizu, P. (2020). pairwiseAdonis: Pairwise multilevel comparison using adonis. R package version 0.4.
 https://github.com/pmartinezarbizu/pairwiseAdonis
 
-If you used this fork, please also give its version and address, e.g. "pairwiseAdonis version 0.4.3
+If you used this fork, please also give its version and address, e.g. "pairwiseAdonis version 0.5.0
 (https://github.com/JWeld/pairwiseAdonis)".

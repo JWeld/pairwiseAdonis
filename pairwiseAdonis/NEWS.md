@@ -1,7 +1,12 @@
-# pairwiseAdonis 0.4.3
+# pairwiseAdonis 0.5.0
 
 Further fixes after a review of 0.4.2. Tested against vegan 2.6-4, and against
 the `adonis2()` code of vegan 2.7-6 and of the development version 2.8-0.
+
+This release follows 0.4.2 of this fork. The version jumps to 0.5.0 because
+default results of `pairwise.adonis2()` change (adjusted p-values), and to
+leave the 0.4.x numbers to the original package
+(https://github.com/pmartinezarbizu/pairwiseAdonis).
 
 ## Changes in results
 

@@ -1,6 +1,6 @@
 Package: pairwiseAdonis
 Title: Pairwise Multilevel Comparison using Adonis
-Version: 0.4.3
+Version: 0.5.0
 Date: 2026-10-05
 Authors@R: c(person("Pedro", "Martinez Arbizu", email = "pmartinez@senckenberg.de", role = "aut"),
              person("Sylvain", "Monteux", role = "aut"),
