@@ -17,7 +17,8 @@ pairwise.adonis(
 }
 \arguments{
 \item{x}{Data frame or matrix (the community table), or "dist" object (user-supplied distance matrix).
-A symmetric square matrix is also treated as a distance matrix, as in adonis2().}
+A symmetric square matrix is also treated as a distance matrix, as in adonis2(). A single numeric
+variable (a vector) is treated as a one-column matrix.}
 
 \item{factors}{Vector (a column or vector with the levels to be compared pairwise).
 Must have one entry per row (observation) of x. If it is a factor, the pairs follow the order
@@ -64,7 +65,7 @@ pairwise.adonis(iris[,1:4],iris$Species)
 
 #similarity euclidean from vegdist and holm correction
 pairwise.adonis(x=iris[,1:4],factors=iris$Species,sim.function='vegdist',
-sim.method='euclidian',p.adjust.m='holm')
+sim.method='euclidean',p.adjust.m='holm')
 
 #identical example using a distance matrix as an input
 dist_matrix=vegdist(iris[,1:4],method="euclidean")

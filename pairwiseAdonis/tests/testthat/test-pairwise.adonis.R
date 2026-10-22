@@ -106,8 +106,23 @@ test_that("further arguments go to the distance function or to adonis2", {
                "must be named")
 })
 
+test_that("a single numeric variable is accepted as x", {
+  idx <- iris$Species %in% c("setosa", "versicolor")
+  set.seed(5)
+  res <- pairwise.adonis(iris$Sepal.Length, iris$Species, sim.method = "euclidean", perm = 49)
+  set.seed(5)
+  ad <- adonis2(vegdist(iris[idx, "Sepal.Length", drop = FALSE], "euclidean") ~ Species,
+                data = iris[idx, ], permutations = 49)
+  expect_equal(nrow(res), 3)
+  expect_equal(res$F.Model[1], ad$F[1])
+  expect_equal(res$p.value[1], ad$`Pr(>F)`[1])
+})
+
 test_that("input checks give informative errors", {
   expect_error(pairwise.adonis(iris[, 1:4], iris$Species[1:100]), "one entry per row")
+  expect_error(pairwise.adonis(as.list(iris[, 1:4]), iris$Species), "community matrix")
+  expect_error(pairwise.adonis(iris[, 1:4], iris$Species, perm = "999"), "number of permutations")
+  expect_error(pairwise.adonis(iris[, 1:4], iris$Species, perm = c(99, 999)), "number of permutations")
   expect_error(pairwise.adonis(iris[1:50, 1:4], iris$Species[1:50]), "at least two levels")
   f <- iris$Species; f[1] <- NA
   expect_error(pairwise.adonis(iris[, 1:4], f), "missing values")

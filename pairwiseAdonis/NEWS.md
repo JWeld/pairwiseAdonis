@@ -1,3 +1,30 @@
+# pairwiseAdonis 0.5.1
+
+Small fixes after a review of 0.5.0; results are unchanged. Tested against
+vegan 2.6-4, vegan 2.7-6 (current CRAN release) and the development version
+2.8-0.
+
+* `pairwise.adonis2()` accepts a single numeric variable (a vector) as
+  response, as `adonis2()` does; it is treated as a one-column matrix.
+  `pairwise.adonis()` accepts a numeric vector as `x` in the same way. Other
+  unusable responses (e.g. a list, or a column that does not exist) give an
+  informative error instead of "argument is of length zero".
+* `pairwise.adonis2()`: a variable on the right hand side that is not a
+  column of `data` but has one value per observation (found in the
+  environment of the formula) failed with "'qr' and 'y' must have the same
+  number of rows", because only `data` is reduced to each pair. It now gives
+  an error naming the variable. Scalars from the environment still work.
+* `pairwise.adonis2()`: `nperm` must be a single number; a `how()` design
+  failed with "non-numeric argument to binary operator". `pairwise.adonis()`
+  checks in the same way that `perm` is a number or a `how()` design.
+* `pairwise.adonis2()`: the `parent_call` element is now the call with the
+  formula and all arguments that apply to every pair, e.g.
+  `pairwise.adonis2(x = Y ~ NO3, data = dat, strata = "field", nperm = 999,
+  p.adjust.m = "bonferroni", by = "terms")`, instead of
+  `Y ~ NO3 , strata = field , permutations 999, by = "terms", p.adjust.m = bonferroni`.
+* Documentation: typos in the examples fixed (`sim.method = 'euclidean'`;
+  `vegdist()` accepted the misspelling).
+
 # pairwiseAdonis 0.5.0
 
 Further fixes after a review of 0.4.2. Tested against vegan 2.6-4, and against
