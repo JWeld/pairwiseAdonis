@@ -4,7 +4,8 @@
 #' using adonis2() from package 'vegan'. The function returns adjusted p-values using p.adjust().
 #'
 #'@param x Data frame or matrix (the community table), or "dist" object (user-supplied distance matrix).
-#' A symmetric square matrix is also treated as a distance matrix, as in adonis2().
+#' A symmetric square matrix is also treated as a distance matrix, as in adonis2(). A single numeric
+#' variable (a vector) is treated as a one-column matrix.
 #'
 #'@param factors Vector (a column or vector with the levels to be compared pairwise).
 #' Must have one entry per row (observation) of x. If it is a factor, the pairs follow the order
@@ -48,7 +49,7 @@
 #'
 #'#similarity euclidean from vegdist and holm correction
 #' pairwise.adonis(x=iris[,1:4],factors=iris$Species,sim.function='vegdist',
-#' sim.method='euclidian',p.adjust.m='holm')
+#' sim.method='euclidean',p.adjust.m='holm')
 #'
 #'#identical example using a distance matrix as an input
 #' dist_matrix=vegdist(iris[,1:4],method="euclidean")
@@ -97,6 +98,10 @@ pairwise.adonis <- function(x,factors, sim.function = 'vegdist', sim.method = 'b
   ad.args <- dots[names(dots) %in% c('sqrt.dist', 'add', 'parallel')]
   dist.args <- dots[!names(dots) %in% names(ad.args)]
 
+  ## a single numeric variable (vector) is a one-column matrix, as in adonis2
+  if (!inherits(x, 'dist') && !is.null(x) && is.atomic(x) && is.null(dim(x)))
+    x <- as.matrix(x)
+
   ## a symmetric square matrix is a distance matrix (same rule as adonis2)
   if (!inherits(x, 'dist') && (is.matrix(x) || is.data.frame(x)) &&
       nrow(x) == ncol(x) && is.numeric(as.matrix(x)) &&
@@ -109,6 +114,8 @@ pairwise.adonis <- function(x,factors, sim.function = 'vegdist', sim.method = 'b
          "'euclidean', 'manhattan' or 'gower', not '", sim.method, "'")
 
   nobs <- if (inherits(x, 'dist')) attr(x, 'Size') else nrow(x)
+  if (is.null(nobs))
+    stop("'x' must be a community matrix or data frame, a numeric vector or a distance matrix")
   if (length(factors) != nobs)
     stop("'factors' must have one entry per row (observation) of 'x': ",
          length(factors), " vs ", nobs)
@@ -121,6 +128,9 @@ pairwise.adonis <- function(x,factors, sim.function = 'vegdist', sim.method = 'b
   blocks <- NULL
   if (is.matrix(perm))
     stop("'perm' cannot be a permutation matrix: each pair uses a subset of the observations")
+  if (!inherits(perm, 'how') &&
+      !(is.numeric(perm) && length(perm) == 1L && !is.na(perm) && perm >= 0))
+    stop("'perm' must be the number of permutations or a permutation design from permute::how()")
   if (inherits(perm, 'how')) {
     if (!is.null(getStrata(perm, which = 'plots')))
       stop("permutation designs with plot-level strata are not supported: ",

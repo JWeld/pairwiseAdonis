@@ -50,8 +50,31 @@ test_that("extra terms are kept and by = 'terms' is forwarded", {
   expect_equal(rownames(res[[2]]), c("NO3", "NO3:field", "Residual", "Total"))
 })
 
+test_that("a single numeric variable is accepted as response", {
+  idx <- dat$NO3 %in% c("0", "10")
+  set.seed(5); a <- pairwise.adonis2(Y$A ~ NO3, data = dat, nperm = 49, p.adjust.m = "none")[["0_vs_10"]]
+  set.seed(5); b <- adonis2(Y$A[idx] ~ NO3, data = dat[idx, ], permutations = 49)
+  expect_equal(as.data.frame(a), as.data.frame(b), ignore_attr = TRUE)
+  expect_error(pairwise.adonis2(as.list(Y) ~ NO3, data = dat), "community matrix")
+  expect_error(pairwise.adonis2(dat$nonexistent ~ NO3, data = dat), "community matrix")
+})
+
+test_that("a right hand side variable that is not a column of data gives an informative error", {
+  grpvec <- dat$NO3
+  expect_error(pairwise.adonis2(Y ~ grpvec, data = dat, nperm = 9), "'grpvec'.*not a column of 'data'")
+  expect_error(pairwise.adonis2(Y ~ NO3 + grpvec, data = dat, nperm = 9), "'grpvec'")
+  # a scalar from the environment is fine (defined in the global environment,
+  # where adonis2() of every vegan version finds it)
+  assign("cutoff", 1.5, envir = globalenv())
+  on.exit(rm("cutoff", envir = globalenv()))
+  expect_named(pairwise.adonis2(Y ~ NO3 + I(as.numeric(rep) > cutoff), data = dat, nperm = 9),
+               c("parent_call", "0_vs_10", "0_vs_30", "10_vs_30"))
+})
+
 test_that("input checks give informative errors", {
   expect_error(pairwise.adonis2(Y ~ NO3, data = dat[1:17, ]), "same number of rows")
+  expect_error(pairwise.adonis2(Y ~ NO3, data = dat, nperm = how(nperm = 9)), "single number")
+  expect_error(pairwise.adonis2(Y ~ NO3, data = dat, nperm = c(9, 99)), "single number")
   expect_error(pairwise.adonis2(Y ~ NO3, data = dat, strata = "nope"), "column of 'data'")
   expect_error(pairwise.adonis2(Y ~ NO3, data = dat, permutations = 9), "nperm")
   datNA <- dat; datNA$NO3[1] <- NA
@@ -143,8 +166,13 @@ test_that("headings and the parent call describe the comparison", {
   h <- attr(res[["0_vs_30"]], "heading")
   expect_true(any(grepl("Blocks: +field", h)))
   expect_true(any(grepl("Pairwise comparison 0 vs 30 of NO3 in Y ~ NO3", h, fixed = TRUE)))
-  expect_match(res$parent_call, 'by = "terms"', fixed = TRUE)
-  expect_match(res$parent_call, "p.adjust.m = bonferroni", fixed = TRUE)
+  expect_match(res$parent_call, '^pairwise.adonis2\\(x = Y ~ NO3, data = dat, strata = "field", nperm = 9, ')
+  expect_match(res$parent_call, 'p.adjust.m = "bonferroni", by = "terms"\\)$')
+  expect_match(pairwise.adonis2(Y ~ NO3, data = dat, nperm = 9)$parent_call,
+               'strata = NULL, nperm = 9, p.adjust.m = "bonferroni"\\)$')
+  # the data argument is shown by name, or by its class when it is an expression
+  expect_match(pairwise.adonis2(Y ~ NO3, data = dat[1:18, ], nperm = 9)$parent_call,
+               "data = `<data.frame>`", fixed = TRUE)
   out <- capture.output(print(res))
   expect_false(any(grepl("attr(,\"class\")", out, fixed = TRUE)))
 })

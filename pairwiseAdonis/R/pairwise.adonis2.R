@@ -4,8 +4,11 @@
 #' using adonis2() from package 'vegan'. The function accepts interaction between factors and strata.
 #'
 #'@param x Model formula. The LHS is either community matrix or dissimilarity matrix (eg. from vegdist or dist;
-#' a symmetric square matrix is also treated as a dissimilarity matrix, as in adonis2()).
-#' See adonis2() for details. The RHS are factors that must be column names of a data.frame specified with argument data.
+#' a symmetric square matrix is also treated as a dissimilarity matrix, as in adonis2()), or a single
+#' numeric variable (a vector, treated as a one-column matrix).
+#' See adonis2() for details. The RHS are factors that must be column names of a data.frame specified with argument data
+#' (a variable with one value per observation that is not a column of \code{data} gives an error, because only
+#' \code{data} is reduced to the observations of each pair).
 #' Pairwise comparisons are made between the levels of the first variable on the RHS, which should be a
 #' factor, character or logical vector. A numeric variable gives a warning, because each pair of its
 #' distinct values is compared (use e.g. \code{factor(x)} in the formula for numeric group codes).
@@ -18,7 +21,7 @@
 #'
 #'@param strata String. The name of the column with factors to be used as strata.
 #'
-#'@param nperm The number of permutations.
+#'@param nperm The number of permutations (a single number).
 #'
 #'@param p.adjust.m The p-value correction method, one of the methods supported by p.adjust(),
 #' default is 'bonferroni'. The p-value in the first row of the table of each pair (see Details) is
@@ -44,7 +47,8 @@
 #' with the default \code{na.fail} they give an error. Missing values in the strata column always
 #' give an error.
 #'
-#'@return List of class "pwadstrata". The first element is the parent call; the remaining elements are the
+#'@return List of class "pwadstrata". The first element is the parent call (a string with the formula and the
+#' arguments used); the remaining elements are the
 #' anova tables returned by adonis2 for each unique pairwise combination of levels, with the
 #' adjusted p-values in column \code{Pr(adj)} (unless \code{p.adjust.m = 'none'}).
 #'
@@ -71,7 +75,7 @@
 #' pairwise.adonis2(Y ~ NO3, data = dat, strata = 'field')
 #' #notice the apostrophes in strata = 'field' !
 #'
-#' #this will give same results a doing adonis2 pairwise one by one
+#' #this will give the same results as doing adonis2 pairwise one by one
 #' #(apart from the adjusted p-values in column Pr(adj))
 #'
 #' #for factors '0' and '10'
@@ -102,19 +106,19 @@ pairwise.adonis2 <- function(x, data, strata = NULL, nperm=999, p.adjust.m = 'bo
     stop("use arguments 'nperm' and 'strata' instead of 'permutations'")
   if (!is.null(strata) && !(is.character(strata) && length(strata) == 1 && strata %in% names(data)))
     stop("'strata' must be the name of a column of 'data', given as a string")
+  if (!is.numeric(nperm) || length(nperm) != 1L || is.na(nperm) || nperm < 0)
+    stop("'nperm' must be a single number (the number of permutations); ",
+         "a permutation design is not accepted, use 'strata' for blocks")
   p.adjust.m <- match.arg(p.adjust.m, p.adjust.methods)
 
-#describe parent call function
-ststri <- ifelse(is.null(strata),'Null',strata)
-fostri <- as.character(x)
-dotexpr <- match.call(expand.dots = FALSE)$...
-dotstri <- ''
-if (length(dotexpr)) {
-  dotnames <- if (is.null(names(dotexpr))) rep('', length(dotexpr)) else names(dotexpr)
-  dotstri <- paste0(', ', ifelse(dotnames == '', '', paste(dotnames, '= ')),
-                    vapply(dotexpr, function(e) paste(deparse(e), collapse = ' '), ''),
-                    collapse = '')
-}
+# describe the parent call: the formula and the arguments that apply to every pair
+  mc <- match.call(expand.dots = FALSE)
+  dataexpr <- mc$data
+  if (!is.name(dataexpr)) dataexpr <- as.name(paste0('<', class(data)[1L], '>'))
+  parent_call <- as.call(c(list(as.name('pairwise.adonis2'), x = x, data = dataexpr,
+                                strata = strata, nperm = nperm, p.adjust.m = p.adjust.m),
+                           as.list(mc$...)))
+  parent_call <- paste(deparse(parent_call, width.cutoff = 500L), collapse = ' ')
 
 # environment of the formula: right hand side variables not found in 'data'
 # and the response are looked up there, as in adonis2
@@ -125,11 +129,17 @@ if (length(dotexpr)) {
    environment(x1) <- fenv
 # extract left hand side of formula
   lhs <- eval(x1[[2]], fenv, globalenv())
+# a single variable (vector) is a one-column matrix, as in adonis2
+  if (!inherits(lhs, 'dist') && !is.null(lhs) && is.atomic(lhs) && is.null(dim(lhs)))
+    lhs <- as.matrix(lhs)
 # a symmetric square matrix is a dissimilarity matrix (same rule as adonis2)
   if ((is.matrix(lhs) || is.data.frame(lhs)) && nrow(lhs) == ncol(lhs) &&
       is.numeric(as.matrix(lhs)) && isSymmetric(unname(as.matrix(lhs))))
     lhs <- as.dist(lhs)
   nobs <- if (inherits(lhs, 'dist')) attr(lhs, 'Size') else nrow(lhs)
+  if (is.null(nobs))
+    stop("the response (left hand side) must be a community matrix or data frame, ",
+         "a numeric vector or a dissimilarity matrix")
   if (nobs != nrow(data))
     stop("the response and 'data' must have the same number of rows (observations): ",
          nobs, " vs ", nrow(data))
@@ -150,6 +160,16 @@ if (length(dotexpr)) {
   grp.frame <- if (length(rhs$cond)) model.frame(fgrp, data, na.action = na.pass) else rhs.frame
   if (!length(grp.frame))
     stop("the formula needs a grouping variable on the right hand side")
+# variables of the right hand side that are not columns of 'data' are taken
+# from the environment of the formula and are not reduced to each pair:
+# a variable with one value per observation must therefore be in 'data'
+  for (v in setdiff(all.vars(fall), names(data))) {
+    val <- tryCatch(eval(as.name(v), fenv), error = function(e) NULL)
+    if (!is.null(val) && nobs > 1L && NROW(val) == nobs)
+      stop("the variable '", v, "' on the right hand side is not a column of 'data' ",
+           "but has one value per observation: add it to 'data' so that it is reduced ",
+           "to the observations of each pair")
+  }
 
 # missing values on the right hand side: the observations are dropped here, as
 # adonis2 would do with its na.action, so that the response, data and strata
@@ -198,46 +218,45 @@ if (length(dotexpr)) {
   names(res) <- nameres
 
 #add parent call to res
-res[['parent_call']] <- paste0(paste(fostri[2],fostri[1],fostri[3],', strata =',ststri, ', permutations',nperm ),
-                               dotstri, ', p.adjust.m = ', p.adjust.m)
+  res[['parent_call']] <- parent_call
 
-#start iteration trough pairwise combination of factors
- for(elem in seq_len(ncol(co))){
+#start iteration through pairwise combination of factors
+  for(elem in seq_len(ncol(co))){
 
-  idx <- grp %in% co[, elem]
+    idx <- grp %in% co[, elem]
 
 #reduce model elements
-	if(inherits(lhs,'dist')){
-	    xred <- as.dist(as.matrix(lhs)[idx, idx])
-	}else{
-	    xred <- lhs[idx, , drop = FALSE]
-	}
+    if(inherits(lhs,'dist')){
+      xred <- as.dist(as.matrix(lhs)[idx, idx])
+    }else{
+      xred <- lhs[idx, , drop = FALSE]
+    }
 
-	mdat1 <- data[idx, , drop = FALSE]
+    mdat1 <- data[idx, , drop = FALSE]
 
 # redefine formula: same right hand side, reduced response. adonis2 looks for
 # the response in the environment of the formula (vegan <= 2.6) or in the
 # calling frame (vegan >= 2.7), so 'xred' is kept in both: as a local variable
 # here and in a child of the original formula environment, where functions and
 # objects of the caller used on the right hand side are still found.
-	xenv <- new.env(parent = fenv)
-	xenv$xred <- xred
-	xnew <- x
-	xnew[[2]] <- as.name('xred')
-	environment(xnew) <- xenv
+    xenv <- new.env(parent = fenv)
+    xenv$xred <- xred
+    xnew <- x
+    xnew[[2]] <- as.name('xred')
+    environment(xnew) <- xenv
 
 #pass new formula to adonis2
-	perm <- how(nperm = nperm)
-	if(!is.null(strata)){
-	    setBlocks(perm) <- mdat1[[strata]]
-	    perm[['blocks.name']] <- strata
-	}
-	ad <- adonis2(xnew, data = mdat1, permutations = perm, ... )
+    perm <- how(nperm = nperm)
+    if(!is.null(strata)){
+      setBlocks(perm) <- mdat1[[strata]]
+      perm[['blocks.name']] <- strata
+    }
+    ad <- adonis2(xnew, data = mdat1, permutations = perm, ... )
 # describe the pair instead of the internal call in the heading
-	attr(ad, 'heading')[2] <- paste('Pairwise comparison', co[1, elem], 'vs', co[2, elem],
-	                                'of', gname, 'in', paste(deparse(x), collapse = ' '))
+    attr(ad, 'heading')[2] <- paste('Pairwise comparison', co[1, elem], 'vs', co[2, elem],
+                                    'of', gname, 'in', paste(deparse(x), collapse = ' '))
 
-  res[[nameres[elem+1]]] <- ad
+    res[[nameres[elem+1]]] <- ad
   }
 
 # adjust the p-values of the first row for the number of pairwise comparisons

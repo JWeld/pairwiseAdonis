@@ -15,8 +15,11 @@ pairwise.adonis2(
 }
 \arguments{
 \item{x}{Model formula. The LHS is either community matrix or dissimilarity matrix (eg. from vegdist or dist;
-a symmetric square matrix is also treated as a dissimilarity matrix, as in adonis2()).
-See adonis2() for details. The RHS are factors that must be column names of a data.frame specified with argument data.
+a symmetric square matrix is also treated as a dissimilarity matrix, as in adonis2()), or a single
+numeric variable (a vector, treated as a one-column matrix).
+See adonis2() for details. The RHS are factors that must be column names of a data.frame specified with argument data
+(a variable with one value per observation that is not a column of \code{data} gives an error, because only
+\code{data} is reduced to the observations of each pair).
 Pairwise comparisons are made between the levels of the first variable on the RHS, which should be a
 factor, character or logical vector. A numeric variable gives a warning, because each pair of its
 distinct values is compared (use e.g. \code{factor(x)} in the formula for numeric group codes).
@@ -29,7 +32,7 @@ It must have one row per row (observation) of the LHS.}
 
 \item{strata}{String. The name of the column with factors to be used as strata.}
 
-\item{nperm}{The number of permutations.}
+\item{nperm}{The number of permutations (a single number).}
 
 \item{p.adjust.m}{The p-value correction method, one of the methods supported by p.adjust(),
 default is 'bonferroni'. The p-value in the first row of the table of each pair (see Details) is
@@ -41,7 +44,8 @@ significance codes then refer to the adjusted p-values. The unadjusted p-values 
 \code{na.action}.}
 }
 \value{
-List of class "pwadstrata". The first element is the parent call; the remaining elements are the
+List of class "pwadstrata". The first element is the parent call (a string with the formula and the
+arguments used); the remaining elements are the
 anova tables returned by adonis2 for each unique pairwise combination of levels, with the
 adjusted p-values in column \code{Pr(adj)} (unless \code{p.adjust.m = 'none'}).
 }
@@ -86,7 +90,7 @@ adonis2(Y ~ NO3, data = dat, permutations = perm)
 pairwise.adonis2(Y ~ NO3, data = dat, strata = 'field')
 #notice the apostrophes in strata = 'field' !
 
-#this will give same results a doing adonis2 pairwise one by one
+#this will give the same results as doing adonis2 pairwise one by one
 #(apart from the adjusted p-values in column Pr(adj))
 
 #for factors '0' and '10'

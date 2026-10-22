@@ -1,5 +1,5 @@
 # pairwiseAdonis
-# version 0.5.0 includes 2 functions
+# version 0.5.1 includes 2 functions
 pairwise.adonis
 
 pairwise.adonis2
@@ -26,6 +26,11 @@ This function accepts a model formula like in adonis from vegan. You can use int
 - the strata if used.
 
 The reduced data are passed to adonis and the summary of the anova table for each pair is saved in a list, together with the anova table of the full model and the original 'parent call'.
+
+update 22.10.2026 (version 0.5.1)
+Small fixes, results unchanged: both functions accept a single numeric variable as response (as adonis2 does),
+pairwise.adonis2 gives informative errors for a right-hand-side variable that is not a column of `data` and for a
+`nperm` that is not a single number, and its `parent_call` element is now a readable call. See NEWS.md in the package.
 
 update 05.10.2026 (version 0.5.0)
 pairwise.adonis2 now adjusts p-values for multiple comparisons (column `Pr(adj)`; use `p.adjust.m = 'none'` for the
@@ -139,5 +144,5 @@ Please cite the original package:
 Martinez Arbizu, P. (2020). pairwiseAdonis: Pairwise multilevel comparison using adonis. R package version 0.4.
 https://github.com/pmartinezarbizu/pairwiseAdonis
 
-If you used this fork, please also give its version and address, e.g. "pairwiseAdonis version 0.5.0
+If you used this fork, please also give its version and address, e.g. "pairwiseAdonis version 0.5.1
 (https://github.com/JWeld/pairwiseAdonis)".
